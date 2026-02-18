@@ -163,7 +163,7 @@ public class UserServiceImpl implements UserDetailsService{
 			sendEmail(temp.getEmail(),otp, formattedDateTime);
 			return "TempUser added Successfully";
 			}
-			return "User Already there";
+			return "User Already available";
 	}
 	
 	public static String getOtp() {
