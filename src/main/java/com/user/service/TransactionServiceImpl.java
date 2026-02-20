@@ -330,45 +330,13 @@ public class TransactionServiceImpl {
 	            .timestamp(LocalDateTime.now())
 	            .build();
 	}
-
-//	public ResponseEntity<?> getAllTransactions(){
-//		Long userId = jwtAuthenticationFilter.getLoggedInUserId(); 
-//		List<Transaction> transactions = transactionRepo.findAllByCreatedBy(userId);
-//		
-//		if (transactions != null && !transactions.isEmpty()) {
-//	        List<Map<String, Object>> transactionDetails = new ArrayList<>();
-//	        for (Transaction transaction : transactions) {
-//	            Map<String, Object> element = new HashMap<>();
-//	            element.put("id", transaction.getId());
-//	            element.put("amount", transaction.getAmount());
-//	            element.put("balance", transaction.getBalance());
-//	            element.put("dateOfTransaction", transaction.getDateOfTransaction());
-//	            element.put("discount", transaction.getDiscount());
-//	            element.put("entityId", transaction.getEntityId());
-//	            element.put("entityKey", transaction.getEntityKey());
-//	            element.put("mode", transaction.getMode());
-//	            element.put("transaction", transaction.getDescription().toUpperCase());
-//	            if(transaction.getProductsJson() != null)
-//	            	element.put("products", transaction.getProducts());
-//	            if(transaction.getEntityKey()=='C' || transaction.getEntityKey()=='D') {
-//	            	element.put("personData" , partyDetailsRepo.findById(transaction.getEntityId()));
-//		        }else if(transaction.getEntityKey()=='E') {
-//		        	element.put("personData" , employeeRepo.findById(transaction.getEntityId()));
-//		        }
-//	            transactionDetails.add(element);
-//	        }
-//	        
-//	        return new ResponseEntity<>(transactionDetails, HttpStatus.OK);
-//	    }
-//		return new ResponseEntity<>("No Details", HttpStatus.OK);
-//	}
 	
 	//@Cacheable(value = "transactions")
 	public ResponseEntity<?> getAllTransactions(int page, int size) {
 
 	    Long userId = jwtAuthenticationFilter.getLoggedInUserId();
 
-	    Pageable pageable = PageRequest.of(page, size, Sort.by("dateOfTransaction").descending());
+	    Pageable pageable = PageRequest.of(page, size, Sort.by("dateOfTransaction").descending().and(Sort.by("id").descending()));
 
 	    Page<Transaction> transactionPage =
 	            transactionRepo.findAllByCreatedBy(userId, pageable);
@@ -546,7 +514,7 @@ public class TransactionServiceImpl {
 
 	    int page = offset / limit;
 
-	    Pageable pageable = PageRequest.of(page, limit, Sort.by("dateOfTransaction").descending());
+	    Pageable pageable = PageRequest.of(page, limit, Sort.by("dateOfTransaction").descending().and(Sort.by("id").descending()));
 
 	    Page<Transaction> pageData;
 	    Long totalAmount;

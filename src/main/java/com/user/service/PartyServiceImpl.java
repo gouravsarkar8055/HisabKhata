@@ -149,23 +149,41 @@ public class PartyServiceImpl {
 	                .build();
 	    }
 
-	    if (prt.getBalance() == null) {
-	        prt.setBalance(0L);
+	    if(existingParty.getBalance() != prt.getBalance()) {
+	    	if(prt.getBalance() != null && prt.getBalance() != 0L) {
+	    		Long transactionIdByEntityIdAndTransaction = 
+	    				transactionRepo.getTransactionIdByEntityIdAndTransaction(prt.getId(), "opening-balance");
+	    		if(transactionIdByEntityIdAndTransaction != null) {
+	    			Transaction transaction = transactionRepo.findByTransactionId(transactionIdByEntityIdAndTransaction);
+	    			transaction.setAmount(prt.getBalance());
+	    			transaction.setDateOfTransaction(prt.getDateOfLastTransaction());
+	    			transaction.setEntityKey(prt.getPartyKey());
+	    			transactionRepo.save(transaction);
+	    		}
+	    		else {
+	    			Transaction t = new Transaction();
+			    	t.setAmount(prt.getBalance());
+			    	t.setCreatedBy(userId);
+			    	t.setDateOfTransaction(prt.getDateOfLastTransaction());
+			    	t.setTransaction("opening-balance");
+			    	t.setEntityKey(prt.getPartyKey());
+			    	t.setEntityId(prt.getId());
+			    	
+			    	transactionServiceImpl.addTransaction(t);
+	    		}
+		    }
 	    }
+	    
 	    // 4️⃣ Update fields
 	    existingParty.setName(prt.getName());
 	    existingParty.setEmail(prt.getEmail());
 	    existingParty.setAddress(prt.getAddress());
-	    existingParty.setBalance(prt.getBalance());
+	    existingParty.setBalance(prt.getBalance() != null ? prt.getBalance() : 0L);
 	    existingParty.setPhone(prt.getPhone());
 	    existingParty.setPartyKey(prt.getPartyKey()); // if needed
 	    existingParty.setDateOfLastTransaction(prt.getDateOfLastTransaction());
 
 	    PartyDetails updated = partyDetailsRepo.save(existingParty);
-	    
-	    if(existingParty.getBalance() == prt.getBalance()) {
-	    	
-	    }
 
 	    return ApiResponse.<PartyDetails>builder()
 	            .success(true)
