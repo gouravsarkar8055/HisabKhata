@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -20,6 +22,8 @@ public interface PartyDetailsRepo extends JpaRepository<PartyDetails, Long> {
 
 	Optional<PartyDetails> findById(Long id);
 	
+	Page<PartyDetails> findAllByCreatedBy(Long createdBy, Pageable pageable);
+	
 	PartyDetails findByEmail(String email);
 	
 	PartyDetails findByName(String name);
@@ -28,8 +32,26 @@ public interface PartyDetailsRepo extends JpaRepository<PartyDetails, Long> {
 	
 	List<PartyDetails> findAllByCreatedBy(Long userId);
 	
+	@Query("""
+		    SELECT p
+		    FROM PartyDetails p
+		    WHERE p.createdBy = :userId
+		    AND (:key IS NULL OR p.partyKey = :key)
+		""")
+		Page<PartyDetails> findParties(
+		        @Param("userId") Long userId,
+		        @Param("key") Character key,
+		        Pageable pageable
+		);
+	
 	@Query(value = "SELECT id, name FROM party_table WHERE created_by = :userId", nativeQuery = true)
 	List<Map<String, Object>> getAllPartiesIdName(@Param("userId") Long userId);
+	
+	@Query(value = "SELECT * FROM party_table WHERE created_by = :userId AND id = :id", nativeQuery = true)
+	PartyDetails getPartyById(@Param("userId") Long userId, @Param("id") Long id);
+	
+	@Query(value = "SELECT * FROM party_table WHERE created_by = :userId AND name = :name", nativeQuery = true)
+	PartyDetails getPartyByName(@Param("userId") Long userId, @Param("name") String name);
 	
 	boolean existsByNameAndCreatedBy(String name, Long createdBy);
 

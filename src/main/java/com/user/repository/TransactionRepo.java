@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.user.dto.DashboardSummaryDTO;
 import com.user.entity.Transaction;
 
 import jakarta.transaction.Transactional;
@@ -136,5 +137,25 @@ public interface TransactionRepo extends JpaRepository<Transaction, Long> {
 		       "(t.dateOfTransaction < :updatedDate OR (t.dateOfTransaction = :updatedDate AND t.id < :id))" +
 		       "ORDER BY t.dateOfTransaction, t.id")
 		List<Transaction> findAllBeforeUpdatedDate(@Param("entityKey") Character entityKey, @Param("entityId") Long entityId, @Param("existingDate") LocalDate existingDate, @Param("updatedDate") LocalDate updatedDate, @Param("id") Long id);
+	
+	@Query("""
+			SELECT new com.user.dto.DashboardSummaryDTO(
+			    COALESCE(SUM(CASE WHEN t.transaction = 'SALE' THEN t.amount ELSE 0 END),0),
+			    COALESCE(SUM(CASE WHEN t.transaction = 'PURCHASE' THEN t.amount ELSE 0 END),0),
+			    COALESCE(SUM(CASE WHEN t.transaction = 'PAYMENT-IN' THEN t.amount ELSE 0 END),0),
+			    COALESCE(SUM(CASE WHEN t.transaction = 'PAYMENT-OUT' THEN t.amount ELSE 0 END),0),
+			    COALESCE(SUM(CASE WHEN t.transaction = 'EXPENSE' THEN t.amount ELSE 0 END),0),
+
+			    COALESCE(SUM(CASE WHEN t.transaction = 'SALE' THEN t.amount ELSE 0 END),0) -
+			    COALESCE(SUM(CASE WHEN t.transaction = 'PURCHASE' THEN t.amount ELSE 0 END),0) -
+			    COALESCE(SUM(CASE WHEN t.transaction = 'EXPENSE' THEN t.amount ELSE 0 END),0),
+
+			    COALESCE(SUM(CASE WHEN t.transaction = 'PAYMENT-IN' THEN t.amount ELSE 0 END),0) -
+			    COALESCE(SUM(CASE WHEN t.transaction = 'PAYMENT-OUT' THEN t.amount ELSE 0 END),0)
+			)
+			FROM Transaction t
+			WHERE t.createdBy=:userId AND DATE(t.dateOfTransaction) = CURRENT_DATE
+			""")
+			DashboardSummaryDTO getTodayDashboardSummary(@Param("userId") Long userId);
 
 }

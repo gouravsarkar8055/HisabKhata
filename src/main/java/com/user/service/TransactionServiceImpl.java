@@ -23,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 import com.user.api_response.ApiResponse;
+import com.user.dto.DashboardSummaryDTO;
 import com.user.entity.Employee;
 import com.user.entity.PartyDetails;
 import com.user.entity.Transaction;
@@ -51,7 +52,13 @@ public class TransactionServiceImpl {
 	
 	private static final Logger logger = LoggerFactory.getLogger(TransactionServiceImpl.class);
 	
+	public Long getLoggedInUserId() {
+		return jwtAuthenticationFilter.getLoggedInUserId();
+	}
+	
+	@Transactional
 	public ApiResponse<Transaction> addTransaction(@RequestBody Transaction transaction) {
+
 	    logger.info("Inside addTransaction method");
 
 	    Long userId = transaction.getCreatedBy();
@@ -65,93 +72,85 @@ public class TransactionServiceImpl {
 	    Long amount = transaction.getAmount() == null ? 0L : transaction.getAmount();
 
 	    Long balance = 0L;
-	    
-	    if(transaction.getEntityId() != null) {
-	    	
-		    Long previousBalance = partyDetailsRepo.findBalanceById(transaction.getEntityId());
-		    if (previousBalance == null) previousBalance = 0L;
 
-		    Long totalBalance=0L;
-		    
-		    if(transaction.getTransaction().equalsIgnoreCase("payment-in")) {
-		    	
-		    	//amount = payment + discount;
-		    	balance = amount;
-			    transaction.setBalance(balance);
-			    
-		    	totalBalance = previousBalance - amount;
-		    	
-		    }else if(transaction.getTransaction().equalsIgnoreCase("purchase")) {
-		    	
-		    	balance = amount - (payment+discount);
-			    transaction.setBalance(balance);
-		    	if(balance < 0)
-		    		return ApiResponse.<Transaction>builder()
-		    	            .success(true)
-		    	            .message("Paying amount is more than purchase amount.")
-		    	            .timestamp(LocalDateTime.now())
-		    	            .build();
-		    	
-		    	totalBalance = previousBalance - transaction.getBalance();
-		    	
-		    }else if(transaction.getTransaction().equalsIgnoreCase("payment-out")) {
-		    	
-		    	//amount = payment + discount;
-		    	balance = amount;
-			    transaction.setBalance(balance);
-			    
-		    	totalBalance = previousBalance + amount;
-		    	
-		    }else if(transaction.getTransaction().equalsIgnoreCase("sale")) {
-		    	
-		    	balance = amount - (payment+discount);
-			    transaction.setBalance(balance);
-		    	if(balance < 0)
-		    		return ApiResponse.<Transaction>builder()
-		    	            .success(true)
-		    	            .message("Receiving amount is more than sale amount.")
-		    	            .timestamp(LocalDateTime.now())
-		    	            .build();
-		    	
-		    	totalBalance = previousBalance + transaction.getBalance();
-		    	
-		    }
-		    LocalDate lastDate = partyDetailsRepo.findDateOfLastTransactionById(transaction.getEntityId());
-		    LocalDate txDate = transaction.getDateOfTransaction();
+	    if (transaction.getEntityId() != null) {
 
-		    if (lastDate != null && !txDate.isAfter(lastDate))
-		    	partyDetailsRepo.updateBalance(transaction.getEntityId(), totalBalance);
-		    	
-		    else
-		    	partyDetailsRepo.updateBalanceAndLastTransaction(
-		    			transaction.getEntityId(),
-		    			totalBalance,
-		    			transaction.getDateOfTransaction()
-		    );
-		    
+	        Long previousBalance = partyDetailsRepo.findBalanceById(transaction.getEntityId());
+	        if (previousBalance == null) previousBalance = 0L;
+
+	        Long totalBalance = 0L;
+
+	        if (transaction.getTransaction().equalsIgnoreCase("payment-in")) {
+
+	            balance = amount;
+	            transaction.setBalance(balance);
+
+	            totalBalance = previousBalance - amount;
+
+	        } else if (transaction.getTransaction().equalsIgnoreCase("purchase")) {
+
+	            balance = amount - (payment + discount);
+	            transaction.setBalance(balance);
+
+	            if (balance < 0) {
+	                throw new RuntimeException("Paying amount is more than purchase amount.");
+	            }
+
+	            totalBalance = previousBalance - transaction.getBalance();
+
+	        } else if (transaction.getTransaction().equalsIgnoreCase("payment-out")) {
+
+	            balance = amount;
+	            transaction.setBalance(balance);
+
+	            totalBalance = previousBalance + amount;
+
+	        } else if (transaction.getTransaction().equalsIgnoreCase("sale")) {
+
+	            balance = amount - (payment + discount);
+	            transaction.setBalance(balance);
+
+	            if (balance < 0) {
+	                throw new RuntimeException("Receiving amount is more than sale amount.");
+	            }
+
+	            totalBalance = previousBalance + transaction.getBalance();
+	        }
+
+	        LocalDate lastDate = partyDetailsRepo.findDateOfLastTransactionById(transaction.getEntityId());
+	        LocalDate txDate = transaction.getDateOfTransaction();
+
+	        if (lastDate != null && !txDate.isAfter(lastDate)) {
+	            partyDetailsRepo.updateBalance(transaction.getEntityId(), totalBalance);
+	        } else {
+	            partyDetailsRepo.updateBalanceAndLastTransaction(
+	                    transaction.getEntityId(),
+	                    totalBalance,
+	                    transaction.getDateOfTransaction()
+	            );
+	        }
 	    }
 
 	    if (transaction.getPayments() != null) {
 	        for (TransactionPayment pay : transaction.getPayments()) {
-	            pay.setTransaction(transaction);  
+	            pay.setTransaction(transaction);
 	        }
 	    }
 
 	    Transaction savedTransaction = transactionRepo.save(transaction);
 
-	    logger.info("Saved new transaction ID: {}, Balance: {}", 
-	                savedTransaction.getId(), savedTransaction.getBalance());
+	    logger.info("Saved new transaction ID: {}, Balance: {}",
+	            savedTransaction.getId(), savedTransaction.getBalance());
 
 	    return ApiResponse.<Transaction>builder()
 	            .success(true)
 	            .message("Transaction Successful")
 	            .timestamp(LocalDateTime.now())
 	            .build();
-	}
-		
+	}		
 	
 	@Transactional
-	@CachePut(value = "transactions", key = "#p0.id")  
+	@CachePut(value = "transactions", key = "#p0.id")
 	public ApiResponse<Transaction> editTransaction(Transaction transaction) {
 
 	    Long userId = jwtAuthenticationFilter.getLoggedInUserId();
@@ -162,85 +161,79 @@ public class TransactionServiceImpl {
 	    Long oldPartyBalance = partyDetailsRepo.findBalanceById(existing.getEntityId());
 	    if (oldPartyBalance == null) oldPartyBalance = 0L;
 
-	    Long reversedBalance=0l;
-	    
-	    if(existing.getTransaction().equalsIgnoreCase("payment-in"))
-	    	reversedBalance = oldPartyBalance + existing.getAmount();
-	    
-	    else if(existing.getTransaction().equalsIgnoreCase("purchase")) 
-	    	reversedBalance = oldPartyBalance + existing.getBalance();
-	    
-	    else if(existing.getTransaction().equalsIgnoreCase("payment-out"))
-	    	reversedBalance = oldPartyBalance - existing.getAmount();
-	    
-	    else if(existing.getTransaction().equalsIgnoreCase("sale"))
-	    	reversedBalance = oldPartyBalance - existing.getBalance();
+	    Long reversedBalance = 0L;
+
+	    if (existing.getTransaction().equalsIgnoreCase("payment-in"))
+	        reversedBalance = oldPartyBalance + existing.getAmount();
+
+	    else if (existing.getTransaction().equalsIgnoreCase("purchase"))
+	        reversedBalance = oldPartyBalance + existing.getBalance();
+
+	    else if (existing.getTransaction().equalsIgnoreCase("payment-out"))
+	        reversedBalance = oldPartyBalance - existing.getAmount();
+
+	    else if (existing.getTransaction().equalsIgnoreCase("sale"))
+	        reversedBalance = oldPartyBalance - existing.getBalance();
 
 	    Long payment = transaction.getPayment() == null ? 0L : transaction.getPayment();
 	    Long discount = transaction.getDiscount() == null ? 0L : transaction.getDiscount();
 	    Long amount = transaction.getAmount() == null ? 0L : transaction.getAmount();
 
 	    Long newBalance = 0L;
-	    
-	    if(transaction.getEntityId() != null) {
-	    	
-	    	Long updatedFinalBalance=0L;
-	    	
-	    	if(transaction.getTransaction().equalsIgnoreCase("payment-in")) {
-		    	
-	    		//amount = payment + discount;
-	    		newBalance = amount;
-	    		updatedFinalBalance = reversedBalance - newBalance;
-		    	
-		    }else if(transaction.getTransaction().equalsIgnoreCase("purchase")) {
-		    	
-		    	newBalance = amount - (payment+discount);
-		    	updatedFinalBalance = reversedBalance - newBalance;
-		    	
-		    	if(newBalance < 0)
-		    		return ApiResponse.<Transaction>builder()
-		    	            .success(true)
-		    	            .message("Paying amount is more than purchase amount.")
-		    	            .timestamp(LocalDateTime.now())
-		    	            .build();
-		    	
-		    }else if(transaction.getTransaction().equalsIgnoreCase("payment-out")) {
-		    	
-		    	//amount = payment + discount;
-		    	newBalance = amount;
-		    	updatedFinalBalance = reversedBalance + newBalance;
-		    	
-		    }else if(transaction.getTransaction().equalsIgnoreCase("sale")) {
 
-		    	newBalance = amount - (payment+discount);
-		    	updatedFinalBalance = reversedBalance + newBalance;
-		    	
-		    	if(newBalance < 0)
-		    		return ApiResponse.<Transaction>builder()
-		    	            .success(true)
-		    	            .message("Receiving amount is more than sale amount.")
-		    	            .timestamp(LocalDateTime.now())
-		    	            .build();
-		    	
-		    }
+	    if (transaction.getEntityId() != null) {
 
-		    LocalDate lastDate = partyDetailsRepo.findDateOfLastTransactionById(transaction.getEntityId());
-		    LocalDate txDate = transaction.getDateOfTransaction();
+	        Long updatedFinalBalance = 0L;
 
-		    if (lastDate != null && !txDate.isAfter(lastDate))
-		    	partyDetailsRepo.updateBalance(transaction.getEntityId(), updatedFinalBalance);
-		    	
-		    else
-		    	partyDetailsRepo.updateBalanceAndLastTransaction(
-		    			transaction.getEntityId(),
-		    			updatedFinalBalance,
-		    			transaction.getDateOfTransaction()
-		    );
-		    
+	        if (transaction.getTransaction().equalsIgnoreCase("payment-in")) {
+
+	            newBalance = amount;
+	            updatedFinalBalance = reversedBalance - newBalance;
+
+	        } else if (transaction.getTransaction().equalsIgnoreCase("purchase")) {
+
+	            newBalance = amount - (payment + discount);
+
+	            if (newBalance < 0) {
+	                throw new RuntimeException("Paying amount is more than purchase amount.");
+	            }
+
+	            updatedFinalBalance = reversedBalance - newBalance;
+
+	        } else if (transaction.getTransaction().equalsIgnoreCase("payment-out")) {
+
+	            newBalance = amount;
+	            updatedFinalBalance = reversedBalance + newBalance;
+
+	        } else if (transaction.getTransaction().equalsIgnoreCase("sale")) {
+
+	            newBalance = amount - (payment + discount);
+
+	            if (newBalance < 0) {
+	                throw new RuntimeException("Receiving amount is more than sale amount.");
+	            }
+
+	            updatedFinalBalance = reversedBalance + newBalance;
+	        }
+
+	        LocalDate lastDate = partyDetailsRepo.findDateOfLastTransactionById(transaction.getEntityId());
+	        LocalDate txDate = transaction.getDateOfTransaction();
+
+	        if (lastDate != null && !txDate.isAfter(lastDate)) {
+	            partyDetailsRepo.updateBalance(transaction.getEntityId(), updatedFinalBalance);
+	        } else {
+	            partyDetailsRepo.updateBalanceAndLastTransaction(
+	                    transaction.getEntityId(),
+	                    updatedFinalBalance,
+	                    txDate
+	            );
+	        }
 	    }
-	  
+
+	    // ✅ Clear old payments safely
 	    existing.getPayments().clear();
 
+	    // ✅ Add new payments
 	    if (transaction.getPayments() != null) {
 	        for (TransactionPayment incoming : transaction.getPayments()) {
 
@@ -254,6 +247,7 @@ public class TransactionServiceImpl {
 	        }
 	    }
 
+	    // ✅ Update fields
 	    existing.setBalance(newBalance);
 	    existing.setAmount(transaction.getAmount());
 	    existing.setDescription(transaction.getDescription());
@@ -276,11 +270,11 @@ public class TransactionServiceImpl {
 	            .success(true)
 	            .message("Transaction Edited Successful")
 	            .timestamp(LocalDateTime.now())
-	            .build();  
+	            .build();
 	}
 	
 	@Transactional
-	@CacheEvict(value = "transactions", key = "#p0")
+	@CacheEvict(value = "transactions", key = "#p0", beforeInvocation = true)
 	public ApiResponse<?> deleteTransaction(Long transactionId) {
 
 	    Long userId = jwtAuthenticationFilter.getLoggedInUserId();
@@ -297,33 +291,40 @@ public class TransactionServiceImpl {
 	    Long oldPartyBalance = partyDetailsRepo.findBalanceById(transaction.getEntityId());
 	    if (oldPartyBalance == null) oldPartyBalance = 0L;
 
-	    Long reversedBalance=0l;
-	    
-	    if(transaction.getTransaction().equalsIgnoreCase("payment-in"))
-	    	reversedBalance = oldPartyBalance + transaction.getAmount();
-	    
-	    else if(transaction.getTransaction().equalsIgnoreCase("purchase")) 
-	    	reversedBalance = oldPartyBalance + transaction.getBalance();
-	    
-	    else if(transaction.getTransaction().equalsIgnoreCase("payment-out"))
-	    	reversedBalance = oldPartyBalance - transaction.getAmount();
-	    
-	    else if(transaction.getTransaction().equalsIgnoreCase("sale"))
-	    	reversedBalance = oldPartyBalance - transaction.getBalance();
-	    
+	    Long reversedBalance = 0L;
+
+	    if (transaction.getTransaction().equalsIgnoreCase("payment-in")) {
+	        reversedBalance = oldPartyBalance + transaction.getAmount();
+
+	    } else if (transaction.getTransaction().equalsIgnoreCase("purchase")) {
+	        reversedBalance = oldPartyBalance + transaction.getBalance();
+
+	    } else if (transaction.getTransaction().equalsIgnoreCase("payment-out")) {
+	        reversedBalance = oldPartyBalance - transaction.getAmount();
+
+	    } else if (transaction.getTransaction().equalsIgnoreCase("sale")) {
+	        reversedBalance = oldPartyBalance - transaction.getBalance();
+	    }
+
+	    // ✅ Clear payments (cascade handles delete)
 	    transaction.getPayments().clear();
 
-	    // 🔹 Cascade delete for payments happens automatically
+	    // ✅ Delete transaction
 	    transactionRepo.delete(transaction);
 
-	    LocalDate dateOfLastTransactionById = transactionRepo.getLastTransactionDate(transaction.getEntityKey(), transaction.getEntityId());
-	    
+	    // 🔹 Get last transaction date AFTER delete
+	    LocalDate lastDate = transactionRepo.getLastTransactionDate(
+	            transaction.getEntityKey(),
+	            transaction.getEntityId()
+	    );
+
+	    // ✅ Update party balance
 	    partyDetailsRepo.updateBalanceAndLastTransaction(
 	            transaction.getEntityId(),
 	            reversedBalance,
-	            dateOfLastTransactionById
+	            lastDate
 	    );
-	    
+
 	    return ApiResponse.builder()
 	            .success(true)
 	            .message("Transaction deleted successfully")
@@ -545,5 +546,15 @@ public class TransactionServiceImpl {
 
 	    return ResponseEntity.ok(response);
 	}
+	
+	public ApiResponse<?> home(Long userId){
+    	DashboardSummaryDTO todayDashboardSummary = transactionRepo.getTodayDashboardSummary(userId);
+    	return ApiResponse.builder()
+	            .success(true)
+	            .message("User Dashboard")
+	            .data(todayDashboardSummary)
+	            .timestamp(LocalDateTime.now())
+	            .build();
+    }
 	
 }

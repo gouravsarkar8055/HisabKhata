@@ -1,5 +1,6 @@
 package com.user.controller;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,21 +36,27 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.user.api_response.ApiResponse;
+import com.user.dto.AttendanceDTO;
+import com.user.entity.Attendance;
+import com.user.entity.BusinessEntity;
 import com.user.entity.PartyDetails;
+import com.user.entity.Staff;
 import com.user.entity.TempUser;
 import com.user.entity.Transaction;
 import com.user.entity.UserEntity;
 import com.user.jwtauthentication.JwtKeyManager;
 import com.user.jwtauthentication.JwtUtil;
+import com.user.repository.StaffRepository;
+import com.user.service.BusinessServiceImpl;
 import com.user.service.PartyServiceImpl;
 import com.user.service.TransactionServiceImpl;
 import com.user.service.UserServiceImpl;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/user")
-@CrossOrigin(origins = "*")
 public class UserController {
 	
 	private final AuthenticationManager authenticationManager;
@@ -66,10 +74,16 @@ public class UserController {
 	private PartyServiceImpl partyServiceImpl;
 	
 	@Autowired
+	private StaffRepository staffRepo;
+	
+	@Autowired
 	private UserDetailsService userDetailsService;
 	
 	@Autowired
 	private TransactionServiceImpl transactionServiceImpl;
+	
+	@Autowired
+    private BusinessServiceImpl businessServiceImpl;
 	
 	@GetMapping("/test-mail")
 	public ResponseEntity<?> testMail(@RequestParam(name="email") String email) {
@@ -82,6 +96,13 @@ public class UserController {
 	@GetMapping("/getUserData")
 	public ResponseEntity<?> getUserData() {
 		ApiResponse<UserEntity> res = userServiceImpl.getUserData();
+		
+		return new ResponseEntity<>(res, HttpStatus.OK);
+	}
+	
+	@GetMapping("/home")
+	public ResponseEntity<?> home(@RequestParam("userId") Long userId) {
+		ApiResponse<?> res = transactionServiceImpl.home(userId);
 		
 		return new ResponseEntity<>(res, HttpStatus.OK);
 	}
@@ -253,9 +274,14 @@ public class UserController {
     }
 	
 	@GetMapping("/getAllParties")
-	public ResponseEntity<?> getAllParties(){
-		return partyServiceImpl.getAllParties();
-	}
+    public ResponseEntity<ApiResponse<Object>> getAllParties(
+            @RequestParam("page") int page,
+            @RequestParam("size") int size,
+            @RequestParam("sortBy") String sortBy,
+            @RequestParam("direction") String direction) {
+
+        return partyServiceImpl.getAllParties(page, size, sortBy, direction, 'A');
+    }
 	
 	@PostMapping("/addParty")
 	public ResponseEntity<ApiResponse<PartyDetails>> addParty(
@@ -289,8 +315,29 @@ public class UserController {
 	}
 	
 	@GetMapping("/getAllPartiesName")
-	public List<Map<String, Object>> getAllPartiesName(){
+	public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllPartiesName(){
 		return partyServiceImpl.getAllPartiesName();
+	}
+	
+	@GetMapping("/getPartyById")
+	public ResponseEntity<ApiResponse<PartyDetails>> getPartyById(@RequestParam("partyId") Long partyId){
+		return partyServiceImpl.getPartyById(partyId);
+	}
+	
+	@GetMapping("/getPartiesByKey")
+    public ResponseEntity<ApiResponse<Object>> getPartiesByKey(
+            @RequestParam("page") int page,
+            @RequestParam("size") int size,
+            @RequestParam("sortBy") String sortBy,
+            @RequestParam("direction") String direction,
+            @RequestParam("key") Character key) {
+
+        return partyServiceImpl.getAllParties(page, size, sortBy, direction, key);
+    }
+	
+	@GetMapping("/getPartyByName")
+	public ResponseEntity<ApiResponse<PartyDetails>> getPartyByName(@RequestParam("partyName") String partyName){
+		return partyServiceImpl.getPartyByName(partyName);
 	}
 	
 	@PostMapping("/getSaleReport")
@@ -304,5 +351,117 @@ public class UserController {
 	    }
 	    return response;
 	}
+	
+	@PostMapping("/addBusiness")
+    public BusinessEntity addBusiness(@RequestBody BusinessEntity business) {
+        return businessServiceImpl.addBusiness(business);
+    }
 
+    @PutMapping("/updateBusiness")
+    public BusinessEntity updateBusiness(@RequestParam("id") Long id,
+                                         @RequestBody BusinessEntity business) {
+        return businessServiceImpl.updateBusiness(id, business);
+    }
+
+    @DeleteMapping("/deleteBusiness")
+    public String deleteBusiness(@RequestParam("id") Long id) {
+    	businessServiceImpl.deleteBusiness(id);
+        return "Deleted successfully";
+    }
+
+    @GetMapping("/getBusinessById")
+    public BusinessEntity getBusiness(@RequestParam("id") Long id) {
+        return businessServiceImpl.getBusinessById(id);
+    }
+
+    @GetMapping("/getAllBusiness")
+    public List<BusinessEntity> getAllBusinesses() {
+        return businessServiceImpl.getAllBusinesses();
+    }
+
+    @GetMapping("/getBusinessByUserId")
+    public List<BusinessEntity> getByUserId(@RequestParam("id") Long userId) {
+        return businessServiceImpl.getBusinessesByUserId(userId);
+    }
+
+    @PostMapping("/addStaff")
+    public Staff addStaff(@RequestBody Staff staff) {
+        return userServiceImpl.addStaff(staff);
+    }
+    
+    // UPDATE
+    @PutMapping("/updateStaff/{id}")
+    public ResponseEntity<?> updateStaff(@PathVariable("id") Long id, @RequestBody Staff staff) {
+        return ResponseEntity.ok(userServiceImpl.updateStaff(id, staff));
+    }
+
+    // DELETE (mistake entry)
+    @DeleteMapping("/deleteStaff/{id}")
+    public ResponseEntity<?> deleteStaff(@PathVariable("id") Long id) {
+    	userServiceImpl.deleteStaff(id);
+        return ResponseEntity.ok("Deleted successfully");
+    }
+
+    // MARK AS LEFT
+    @PutMapping("/markStaffAsLeft/{id}")
+    public ResponseEntity<?> markStaffAsLeft(@PathVariable("id") Long id,
+                                      @RequestParam("reason") String reason) {
+    	userServiceImpl.markStaffAsLeft(id, reason);
+        return ResponseEntity.ok("Staff marked as left");
+    }
+
+    // REJOIN
+    @PutMapping("/rejoinStaff/{id}")
+    public ResponseEntity<?> rejoinStaff(@PathVariable("id") Long id,
+                                   @RequestParam("salary") Long salary) {
+    	userServiceImpl.rejoinStaff(id, salary);
+        return ResponseEntity.ok("Staff rejoined successfully");
+    }
+
+    @PostMapping("/updateSalary")
+    public void updateSalary(@RequestParam("id") Long id,
+                             @RequestParam("salary") Long salary,
+                             @RequestParam("isCorrection") boolean isCorrection) {
+        userServiceImpl.updateSalary(id, salary, isCorrection, false);
+    }
+    
+ // ✅ Add Attendance
+    @PostMapping("/addAttendance")
+    public Attendance addAttendance(
+            @RequestParam("staffId") Long staffId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam("present") Double present) {
+
+        return userServiceImpl.addAttendance(staffId, date, present);
+    }
+
+    // ✅ Update Attendance
+    @PutMapping("/updateAttendance/{attendanceId}")
+    public Attendance updateAttendance(
+            @PathVariable("attendanceId") Long attendanceId,
+            @RequestParam("present") Double present) {
+
+        return userServiceImpl.updateAttendance(attendanceId, present);
+    }
+
+    // ✅ Get Attendance by Staff & Date
+    @GetMapping("/getAttendance")
+    public Attendance getAttendance(
+            @RequestParam("staffId") Long staffId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        return userServiceImpl.getAttendanceByStaffAndDate(staffId, date);
+    }
+
+    // ✅ Get All Attendance for a Staff
+    @GetMapping("/getAttendanceBystaff/{staffId}")
+    public List<AttendanceDTO> getAttendanceByStaff(@PathVariable("staffId") Long staffId) {
+        return userServiceImpl.getAttendanceByStaff(staffId);
+    }
+    
+    @GetMapping("/tenant/location")
+    public String getTenantLatiLongi(HttpServletRequest request) {
+        return userServiceImpl.getTenantLatiLongi(request);
+    }
+    
 }

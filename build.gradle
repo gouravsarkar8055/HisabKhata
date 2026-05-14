@@ -67,6 +67,8 @@ dependencies {
 	
 	implementation 'com.github.ben-manes.caffeine:caffeine'
 	
+	implementation 'org.json:json:20231013'
+	
 
     // Exclude commons-logging (avoid conflicts with Spring Boot logging system)
     configurations.all {

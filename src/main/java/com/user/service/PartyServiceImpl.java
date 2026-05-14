@@ -9,6 +9,10 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -247,33 +251,170 @@ public class PartyServiceImpl {
 	    }
 	}
 	
-	public ResponseEntity<?> getAllParties(){
-    	Long userId = jwtAuthenticationFilter.getLoggedInUserId(); 
-		List<PartyDetails> parties = partyDetailsRepo.findAllByCreatedBy(userId);
-		
-		if (parties != null && !parties.isEmpty()) {
-	        List<Map<String, Object>> partyDetails = new ArrayList<>();
-	        for (PartyDetails party : parties) {
-	            Map<String, Object> element = new HashMap<>();
-	            element.put("id", party.getId());
-	            element.put("name", party.getName());
-	            element.put("email", party.getEmail());
-	            element.put("dateOfLastTransaction", party.getDateOfLastTransaction());
-	            element.put("balance", party.getBalance());
-	            element.put("address", party.getAddress());
-	            element.put("phone", party.getPhone());
-	            element.put("dateOfJoin", party.getDateOfJoin());
-	            element.put("partyKey", party.getPartyKey());
-	            partyDetails.add(element);
-	        }
-	        
-	        return new ResponseEntity<>(partyDetails, HttpStatus.OK);
-	    }
-		return new ResponseEntity<>("No Details", HttpStatus.OK);
-    }
-	
-	public List<Map<String, Object>> getAllPartiesName() {
+	public ResponseEntity<ApiResponse<Object>> getAllParties(
+	        int page,
+	        int size,
+	        String sortBy,
+	        String direction,
+	        Character key) {
+
 	    Long userId = jwtAuthenticationFilter.getLoggedInUserId();
-	    return partyDetailsRepo.getAllPartiesIdName(userId);
+
+	    Sort sort = direction.equalsIgnoreCase("desc")
+	            ? Sort.by(sortBy).descending()
+	            : Sort.by(sortBy).ascending();
+
+	    Pageable pageable = PageRequest.of(page, size, sort);
+
+	    Page<PartyDetails> partyPage=null;
+	    if(!key.equals('A')) {
+	    partyPage =
+	            partyDetailsRepo.findParties(
+	                    userId,
+	                    key,
+	                    pageable
+	            );
+	    }
+	    else {
+	    partyPage =
+	            partyDetailsRepo.findAllByCreatedBy(userId, pageable);
+	    }
+	    if (partyPage.isEmpty()) {
+	        return ResponseEntity.ok(
+	                ApiResponse.builder()
+	                        .success(true)
+	                        .message("No Details Found")
+	                        .data(null)
+	                        .timestamp(LocalDateTime.now())
+	                        .build()
+	        );
+	    }
+
+	    // 🔥 Modify Balance Logic Here
+	    List<Map<String, Object>> modifiedList = partyPage.getContent()
+	            .stream()
+	            .map(party -> {
+
+	                Map<String, Object> partyMap = new HashMap<>();
+	                partyMap.put("id", party.getId());
+	                partyMap.put("name", party.getName());
+	                partyMap.put("phone", party.getPhone());
+	                partyMap.put("email", party.getEmail());
+	                partyMap.put("address", party.getAddress());
+	                partyMap.put("createdBy", party.getCreatedBy());
+	                partyMap.put("partyKey", party.getPartyKey());
+	                partyMap.put("dateOfLastTransaction", party.getDateOfLastTransaction());
+	                partyMap.put("dateOfJoin", party.getDateOfJoin());
+	                Long balance = party.getBalance();
+
+	                if (balance != null) {
+	                    if (balance < 0) {
+	                        partyMap.put("balance", Math.abs(balance)); // remove - sign
+	                        partyMap.put("balanceType", "You'll Pay");
+	                        partyMap.put("balanceColor", "#960E03");
+	                    } else if (balance > 0) {
+	                        partyMap.put("balance", balance);
+	                        partyMap.put("balanceType", "You'll Receive");
+	                        partyMap.put("balanceColor", "#038408");
+	                    } else {
+	                        partyMap.put("balance", 0);
+	                        partyMap.put("balanceType", "Settled");
+	                    }
+	                }
+
+	                return partyMap;
+	            })
+	            .toList();
+
+	    Map<String, Object> responseData = new HashMap<>();
+	    responseData.put("data", modifiedList);
+	    responseData.put("currentPage", partyPage.getNumber());
+	    responseData.put("totalItems", partyPage.getTotalElements());
+	    responseData.put("totalPages", partyPage.getTotalPages());
+	    responseData.put("pageSize", partyPage.getSize());
+
+	    return ResponseEntity.ok(
+	            ApiResponse.builder()
+	                    .success(true)
+	                    .message("Party list fetched successfully")
+	                    .data(responseData)
+	                    .timestamp(LocalDateTime.now())
+	                    .build()
+	    );
+	}
+	
+	public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllPartiesName() {
+	    Long userId = jwtAuthenticationFilter.getLoggedInUserId();
+	    List<Map<String,Object>> allPartiesIdName = partyDetailsRepo.getAllPartiesIdName(userId);
+	    
+	    if (allPartiesIdName == null) {
+	        return ResponseEntity.ok(
+	                ApiResponse.<List<Map<String, Object>>>builder()
+	                        .success(true)
+	                        .message("No Details Found")
+	                        .data(null)
+	                        .timestamp(LocalDateTime.now())
+	                        .build()
+	        );
+	    }
+	    
+	    return ResponseEntity.ok(
+	            ApiResponse.<List<Map<String, Object>>>builder()
+	                    .success(true)
+	                    .message("Party names fetched successfully")
+	                    .data(allPartiesIdName)
+	                    .timestamp(LocalDateTime.now())
+	                    .build()
+	    );
+	}
+	
+	public ResponseEntity<ApiResponse<PartyDetails>> getPartyById(Long partyId) {
+	    Long userId = jwtAuthenticationFilter.getLoggedInUserId();
+	    PartyDetails party = partyDetailsRepo.getPartyById(userId, partyId);
+	    
+	    if (party == null) {
+	        return ResponseEntity.ok(
+	                ApiResponse.<PartyDetails>builder()
+	                        .success(true)
+	                        .message("No Details Found")
+	                        .data(null)
+	                        .timestamp(LocalDateTime.now())
+	                        .build()
+	        );
+	    }
+	    
+	    return ResponseEntity.ok(
+	            ApiResponse.<PartyDetails>builder()
+	                    .success(true)
+	                    .message("Party fetched successfully")
+	                    .data(party)
+	                    .timestamp(LocalDateTime.now())
+	                    .build()
+	    );
+	}
+	
+	public ResponseEntity<ApiResponse<PartyDetails>> getPartyByName(String partyName) {
+	    Long userId = jwtAuthenticationFilter.getLoggedInUserId();
+	    PartyDetails party = partyDetailsRepo.getPartyByName(userId, partyName);
+	    
+	    if (party == null) {
+	        return ResponseEntity.ok(
+	                ApiResponse.<PartyDetails>builder()
+	                        .success(true)
+	                        .message("No Details Found")
+	                        .data(null)
+	                        .timestamp(LocalDateTime.now())
+	                        .build()
+	        );
+	    }
+	    
+	    return ResponseEntity.ok(
+	            ApiResponse.<PartyDetails>builder()
+	                    .success(true)
+	                    .message("Party fetched successfully")
+	                    .data(party)
+	                    .timestamp(LocalDateTime.now())
+	                    .build()
+	    );
 	}
 }

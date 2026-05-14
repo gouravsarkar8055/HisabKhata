@@ -1,37 +1,60 @@
 package com.user.service;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import com.user.api_response.ApiResponse;
+import com.user.dto.AttendanceDTO;
+import com.user.entity.Attendance;
 import com.user.entity.CustomUserDetails;
-import com.user.entity.PartyDetails;
+import com.user.entity.FinanceEntry;
+import com.user.entity.SalaryPayment;
+import com.user.entity.Staff;
+import com.user.entity.StaffEmploymentHistory;
+import com.user.entity.StaffSalary;
 import com.user.entity.TempUser;
-import com.user.entity.Transaction;
 import com.user.entity.UserEntity;
-import com.user.jwtauthentication.JwtAuthenticationFilter;
-import com.user.repository.PartyDetailsRepo;
+import com.user.enums.FinanceType;
+import com.user.enums.SalaryType;
+import com.user.repository.AttendanceRepository;
+import com.user.repository.FinanceEntryRepository;
+import com.user.repository.SalaryPaymentRepository;
+import com.user.repository.StaffEmploymentHistoryRepository;
+import com.user.repository.StaffRepository;
+import com.user.repository.StaffSalaryRepository;
 import com.user.repository.UserEntityRepo;
 import com.user.repository.UserRepo;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.RequestEntity;
 
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
@@ -50,10 +73,28 @@ public class UserServiceImpl implements UserDetailsService{
 	private final UserRepo userRepo;
 	
 	@Autowired
+	private SalaryPaymentRepository salaryPaymentRepo;
+	
+	@Autowired
+	private StaffRepository staffRepo;
+	
+	@Autowired
+	private StaffSalaryRepository salaryRepo;
+	
+	@Autowired
+	private FinanceEntryRepository financeRepo;
+	
+	@Autowired
+	private AttendanceRepository attendanceRepo;
+	
+	@Autowired
 	private final UserEntityRepo userEntityRepo;
 	
 	@Autowired
-    private JavaMailSender mailSender;
+	private StaffEmploymentHistoryRepository staffEmploymentHistoryRepo;
+	
+	@Autowired
+    private final JavaMailSender mailSender;
 	
 	@Value("${fromEmail}")
     private String fromEmail;
@@ -69,6 +110,8 @@ public class UserServiceImpl implements UserDetailsService{
 
     @Value("${twilio.phone.number}")
     private String fromPhoneNumber;
+    
+    private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
     
     public UserServiceImpl(UserRepo userRepo, UserEntityRepo userEntityRepo, JavaMailSender mailSender) {
 		this.userRepo = userRepo;
@@ -119,7 +162,7 @@ public class UserServiceImpl implements UserDetailsService{
     	
         if (user != null && otp.equals(user.getOtp())) {
         	if (LocalDateTime.now().isBefore(user.getExpiryDate())) {
-            	sendVerficationSuccessEmail(email,"User");
+            	//sendVerficationSuccessEmail(email,"User");
                 return "verified";
         	}
         	else {
@@ -265,7 +308,7 @@ public class UserServiceImpl implements UserDetailsService{
             	userEntity.setAccountCreated(LocalDateTime.now());
             	userRepo.save(userEntity);
             	userRepo.delete(tempUser);
-            	sendVerficationSuccessEmail(email,tempUser.getUserName());
+            	//sendVerficationSuccessEmail(email,tempUser.getUserName());
                 return "verified";
         	}
         	else {
@@ -486,4 +529,403 @@ public class UserServiceImpl implements UserDetailsService{
 
         return (UserDetails) authentication.getPrincipal();
     }
+    
+    @Transactional
+    public Staff addStaff(Staff staff) {
+
+        // Set default flags
+        staff.setIsActive(true);
+        staff.setIsDeleted(false);
+        
+        // ❌ removed: staff.setJoinDate(...)
+
+        Staff savedStaff = staffRepo.save(staff);
+
+        // ✅ Create employment history (JOIN entry)
+        StaffEmploymentHistory history = new StaffEmploymentHistory();
+        history.setStaff(savedStaff);
+        history.setJoinDate(LocalDate.now());
+        history.setIsActive(true); // current active record
+
+        staffEmploymentHistoryRepo.save(history);
+
+        // ✅ Create initial salary
+        StaffSalary salary = new StaffSalary();
+        salary.setStaff(savedStaff);
+        salary.setSalary(staff.getCurrentSalary());
+        salary.setSalaryType(staff.getSalaryType());
+        salary.setEffectiveFrom(LocalDate.now());
+
+        salaryRepo.save(salary);
+
+        return savedStaff;
+    }
+    
+    @Transactional
+    public Staff updateStaff(Long staffId, Staff updated) {
+
+        Staff existing = staffRepo.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+        if (Boolean.TRUE.equals(existing.getIsDeleted())) {
+            throw new RuntimeException("Staff is deleted");
+        }
+
+        existing.setName(updated.getName());
+        existing.setRole(updated.getRole());
+
+        if (updated.getSalaryType() != null &&
+            updated.getSalaryType() != existing.getSalaryType()) {
+
+            existing.setSalaryType(updated.getSalaryType());
+
+            StaffSalary current = salaryRepo.findCurrentSalary(staffId);
+            if (current != null) {
+                current.setSalaryType(updated.getSalaryType());
+                salaryRepo.save(current);
+            }
+        }
+
+        return staffRepo.save(existing);
+    }
+
+    @Transactional
+    public void deleteStaff(Long staffId) {
+
+        Staff staff = staffRepo.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+      //  boolean hasSalary = salaryRepo.existsByStaffId(staffId);
+        boolean hasAttendance = attendanceRepo.existsByStaffId(staffId);
+        boolean hasPayments = salaryPaymentRepo.existsByStaffId(staffId);
+
+        if (hasAttendance || hasPayments) {
+            throw new RuntimeException("Cannot delete. Use deactivate.");
+        }
+
+        // Soft delete
+        staff.setIsDeleted(true);
+        staff.setIsActive(false);
+
+        staffRepo.save(staff);
+    }
+
+    @Transactional
+    public void markStaffAsLeft(Long staffId, String reason) {
+
+        Staff staff = staffRepo.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+        if (!staff.getIsActive()) {
+            throw new RuntimeException("Already inactive");
+        }
+
+        LocalDate today = LocalDate.now();
+
+        // ✅ Update staff status
+        staff.setIsActive(false);
+        staffRepo.save(staff);
+
+        // ✅ Get current active employment record
+        StaffEmploymentHistory history =
+                staffEmploymentHistoryRepo.findActiveByStaffId(staffId)
+                .orElseThrow(() -> new RuntimeException("Active employment record not found"));
+
+        // ✅ Update exit details in history
+        history.setExitDate(today);
+        history.setExitReason(reason);
+        history.setIsActive(false);
+
+        staffEmploymentHistoryRepo.save(history);
+
+        // ✅ Close current salary
+        StaffSalary current = salaryRepo.findCurrentSalary(staffId);
+        if (current != null) {
+            current.setEffectiveTo(today.minusDays(1));
+            salaryRepo.save(current);
+        }
+    }
+
+    @Transactional
+    public void rejoinStaff(Long staffId, Long newSalary) {
+
+        Staff staff = staffRepo.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+        if (staff.getIsActive()) {
+            throw new RuntimeException("Already active");
+        }
+
+        LocalDate today = LocalDate.now();
+
+        // ✅ Update staff status
+        staff.setIsActive(true);
+        staff.setCurrentSalary(newSalary);
+        staffRepo.save(staff);
+
+        // ✅ Create NEW employment history (rejoin entry)
+        StaffEmploymentHistory history = new StaffEmploymentHistory();
+        history.setStaff(staff);
+        history.setJoinDate(today);
+        history.setIsActive(true);
+
+        staffEmploymentHistoryRepo.save(history);
+
+        // ✅ Add new salary (do NOT reuse old one)
+        updateSalary(staffId, newSalary, false, true);
+    }
+    
+    @Transactional
+    public void updateSalary(Long staffId, Long newSalary, boolean isCorrection, boolean isRejoin) {
+
+        Staff staff = staffRepo.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+        if (Boolean.TRUE.equals(staff.getIsDeleted())) {
+            throw new RuntimeException("Staff deleted");
+        }
+
+        StaffSalary current = salaryRepo.findCurrentSalary(staffId);
+
+        if (current == null && !isRejoin) {
+            throw new RuntimeException("No salary found");
+        }
+
+        LocalDate today = LocalDate.now();
+
+        if (isCorrection) {
+
+            Long count = salaryPaymentRepo.countSalaryPaid(
+                    staffId,
+                    current.getEffectiveFrom(),
+                    today
+            );
+
+            if (count != null && count > 0) {
+                throw new RuntimeException("Salary already processed");
+            }
+
+            current.setSalary(newSalary);
+            salaryRepo.save(current);
+
+        } else {
+
+        	if(!isRejoin) {
+        		current.setEffectiveTo(today.minusDays(1));
+        		salaryRepo.save(current);
+        	}
+
+            StaffSalary newSal = new StaffSalary();
+            newSal.setStaff(staff);
+            newSal.setSalary(newSalary);
+            newSal.setSalaryType(staff.getSalaryType());
+            newSal.setEffectiveFrom(today);
+
+            salaryRepo.save(newSal);
+        }
+
+        staff.setCurrentSalary(newSalary);
+        staffRepo.save(staff);
+    }
+    
+    public Long calculateSalary(Long staffId, LocalDate start, LocalDate end) {
+
+        Staff staff = staffRepo.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+        if (!staff.getIsActive()) {
+            throw new RuntimeException("Staff is inactive");
+        }
+
+        List<Attendance> attendanceList =
+            attendanceRepo.findByStaffIdAndDateBetween(staffId, start, end);
+
+        double totalDays = attendanceList.stream()
+                .mapToDouble(Attendance::getPresent)
+                .sum();
+
+        StaffSalary salary = salaryRepo.findActiveSalary(staffId, start);
+
+        if (salary == null) return 0L;
+
+        switch (salary.getSalaryType()) {
+
+            case DAILY:
+                return (long) (totalDays * salary.getSalary());
+
+            case MONTHLY:
+                long perDay = salary.getSalary() / 30;
+                return (long) (perDay * totalDays);
+
+            case WEEKLY:
+                return salary.getSalary();
+
+            default:
+                return 0L;
+        }
+    }
+    
+    @Transactional
+    public void paySalary(Long staffId, LocalDate start, LocalDate end) {
+
+        Long amount = calculateSalary(staffId, start, end);
+
+        if (amount == null || amount <= 0) {
+            throw new RuntimeException("Invalid salary amount");
+        }
+
+        Staff staff = staffRepo.findById(staffId).orElseThrow();
+
+        SalaryPayment payment = new SalaryPayment();
+        payment.setStaff(staff);
+        payment.setAmount(amount);
+        payment.setPaymentDate(LocalDate.now());
+        payment.setPeriod(start.getMonth() + "-" + start.getYear());
+
+        salaryPaymentRepo.save(payment);
+
+        FinanceEntry entry = new FinanceEntry();
+        entry.setAmount(amount);
+        entry.setType(FinanceType.EXPENSE);
+        entry.setCategory("SALARY");
+        entry.setDate(LocalDate.now());
+
+        financeRepo.save(entry);
+    }
+    
+ // ✅ ADD Attendance
+    @Transactional
+    public Attendance addAttendance(Long staffId, LocalDate date, Double present) {
+
+        Staff staff = staffRepo.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+        // Optional: prevent duplicate entry for same date
+        Optional<Attendance> existing = attendanceRepo.findByStaffAndDate(staffId, date);
+        if (existing.isPresent()) {
+            throw new RuntimeException("Attendance already marked for this date");
+        }
+
+        Attendance attendance = new Attendance();
+        attendance.setStaff(staff);
+        attendance.setDate(date);
+        attendance.setPresent(present);
+
+        return attendanceRepo.save(attendance);
+    }
+
+    // ✅ UPDATE Attendance
+    @Transactional
+    public Attendance updateAttendance(Long attendanceId, Double present) {
+
+        Attendance attendance = attendanceRepo.findById(attendanceId)
+                .orElseThrow(() -> new RuntimeException("Attendance not found"));
+
+        attendance.setPresent(present);
+
+        return attendanceRepo.save(attendance);
+    }
+    
+    public Attendance getAttendanceByStaffAndDate(Long staffId, LocalDate date) {
+
+        return attendanceRepo.findByStaffAndDate(staffId, date)
+                .orElseThrow(() -> new RuntimeException("Attendance not found"));
+    }
+
+    public List<AttendanceDTO> getAttendanceByStaff(Long staffId) {
+
+        Staff staff = staffRepo.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+        return attendanceRepo.findByStaffId(staff.getId())
+                .stream()
+                .map(a -> new AttendanceDTO(
+                        a.getId(),
+                        a.getDate(),
+                        a.getPresent()
+                ))
+                .toList();
+    }
+    
+    public String getTenantLatiLongi(HttpServletRequest request) {
+    	String latitude = request.getParameter("tenantLatitude");
+		String longitude = request.getParameter("tenantLangitude");
+    	String address1 = request.getParameter("tenantAddress");
+    	String address2 = "";
+		String city = request.getParameter("tenantCity");
+		String zipCode = request.getParameter("tenantZipcode");
+		String country = request.getParameter("tenantCountry");
+		String state = request.getParameter("tenantState");
+    	String tenantAddress = address1 + "," + address2 + "," + city + ","
+				+ state + ", " + country + ", " + zipCode;
+		String jsonResponse = null;
+		try {
+			jsonResponse = getText("https://maps.google.com/maps/api/geocode/json?address="
+					+ URLEncoder.encode(tenantAddress, "UTF-8")
+					+ "&sensor=false&key=AIzaSyAXEHjz5uTArWEC0q8-zpu_xXuHXJ2zOl8");
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		JSONObject jresp = getJSONData(jsonResponse);
+		if (jresp.has("lat") && jresp.has("lng")) {
+			latitude = String.valueOf(jresp.getDouble("lat"));
+			longitude = String.valueOf(jresp.getDouble("lng"));
+		} else {
+			String tenantAddress2 = state + ", " + country;
+			String jsonResponse2 = null;
+			try {
+				jsonResponse2 = getText("https://maps.google.com/maps/api/geocode/json?address="
+						+ URLEncoder.encode(tenantAddress2, "UTF-8")
+						+ "&sensor=false&key=AIzaSyAXEHjz5uTArWEC0q8-zpu_xXuHXJ2zOl8");
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			JSONObject jresp2 = getJSONData(jsonResponse2);
+			if (jresp2.has("lat") && jresp2.has("lng")) {
+				latitude = String.valueOf(jresp2.getDouble("lat"));
+				longitude = String.valueOf(jresp2.getDouble("lng"));
+			}
+		}
+    	return "latitude: "+latitude+" & longitude: "+longitude;
+    }
+    
+    public String getText(String url) {
+
+		StringBuilder response = new StringBuilder();
+		try {
+			URL website = new URL(url);
+			URLConnection connection = website.openConnection();
+			BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+			String inputLine;
+			while ((inputLine = in.readLine()) != null)
+				response.append(inputLine);
+			in.close();
+		} catch (Exception e) {
+			String errorMessage = "Error in read JSON Response : ";
+			logger.error(errorMessage + e.getMessage(), e);
+		}
+		return response.toString();
+	}
+    
+    public JSONObject getJSONData(String jsonText) {
+		JSONObject latlang = null;
+		try {
+
+			JSONObject resp = new JSONObject(jsonText);
+			JSONArray jarry = resp.getJSONArray("results");
+
+			if (jarry.length() > 0)
+				latlang = jarry.getJSONObject(0).getJSONObject("geometry").getJSONObject("location");
+			else
+				latlang = new JSONObject();
+
+		} catch (Exception e) {
+			latlang = new JSONObject();
+			logger.error("Error in get the JSON response in getJSONData(): " + e.getMessage(), e);
+		}
+		return latlang;
+	}
+    
 }
