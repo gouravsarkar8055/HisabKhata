@@ -48,7 +48,10 @@ import com.user.jwtauthentication.JwtKeyManager;
 import com.user.jwtauthentication.JwtUtil;
 import com.user.repository.StaffRepository;
 import com.user.service.BusinessServiceImpl;
+<<<<<<< HEAD
 import com.user.service.NotificationPushService;
+=======
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 import com.user.service.PartyServiceImpl;
 import com.user.service.TransactionServiceImpl;
 import com.user.service.UserServiceImpl;
@@ -86,11 +89,14 @@ public class UserController {
 	@Autowired
     private BusinessServiceImpl businessServiceImpl;
 	
+<<<<<<< HEAD
 	@GetMapping("/demo")
 	public String demo() {
 		return "Hello";
 	}
 	
+=======
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 	@GetMapping("/test-mail")
 	public ResponseEntity<?> testMail(@RequestParam(name="email") String email) {
 		String res = userServiceImpl.signinLoginWithEmail(email);
@@ -101,7 +107,11 @@ public class UserController {
 	
 	@GetMapping("/getUserData")
 	public ResponseEntity<?> getUserData() {
+<<<<<<< HEAD
 		ApiResponse<UserEntity> res = userServiceImpl.getUserData(userServiceImpl.getCurrentUserDetails().getUsername());
+=======
+		ApiResponse<UserEntity> res = userServiceImpl.getUserData();
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 		
 		return new ResponseEntity<>(res, HttpStatus.OK);
 	}
@@ -186,7 +196,11 @@ public class UserController {
 
 	        // 4. Generate JWT token
 	        String authToken = jwtUtil.generateToken(userDetails.getUsername());
+<<<<<<< HEAD
 	        
+=======
+
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 	        // 5. Return response
 	        return ResponseEntity.ok(Map.of(
 	                "authentication", authToken,
@@ -246,9 +260,14 @@ public class UserController {
 	}
 	
 	@PostMapping("/addTransaction")
+<<<<<<< HEAD
 	public ResponseEntity<ApiResponse<Transaction>> addTransaction(@RequestHeader("Idempotency-Key") String key, 
 			@RequestBody Transaction transaction){
 		 ApiResponse<Transaction> response = transactionServiceImpl.addTransaction(key, transaction);
+=======
+	public ResponseEntity<ApiResponse<Transaction>> addTransaction(@RequestBody Transaction transaction){
+		 ApiResponse<Transaction> response = transactionServiceImpl.addTransaction(transaction);
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 		if (response.isSuccess()) {
 	        return ResponseEntity.ok(response); // 200 OK
 	    }
@@ -360,12 +379,20 @@ public class UserController {
 	}
 	
 	@PostMapping("/addBusiness")
+<<<<<<< HEAD
     public ApiResponse<BusinessEntity> addBusiness(@RequestBody BusinessEntity business) {
+=======
+    public BusinessEntity addBusiness(@RequestBody BusinessEntity business) {
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
         return businessServiceImpl.addBusiness(business);
     }
 
     @PutMapping("/updateBusiness")
+<<<<<<< HEAD
     public ApiResponse<BusinessEntity> updateBusiness(@RequestParam("id") Long id,
+=======
+    public BusinessEntity updateBusiness(@RequestParam("id") Long id,
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
                                          @RequestBody BusinessEntity business) {
         return businessServiceImpl.updateBusiness(id, business);
     }
@@ -387,8 +414,13 @@ public class UserController {
     }
 
     @GetMapping("/getBusinessByUserId")
+<<<<<<< HEAD
     public ApiResponse<BusinessEntity> getByUserId() {
         return businessServiceImpl.getBusinessesByUserId();
+=======
+    public List<BusinessEntity> getByUserId(@RequestParam("id") Long userId) {
+        return businessServiceImpl.getBusinessesByUserId(userId);
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
     }
 
     @PostMapping("/addStaff")

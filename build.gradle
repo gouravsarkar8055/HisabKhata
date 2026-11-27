@@ -40,7 +40,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-mail'  // Mail functionality if needed
     implementation 'org.springframework.boot:spring-boot-starter-logging'  // Default logging
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+<<<<<<< HEAD
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+=======
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
     // JWT dependencies
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -70,6 +73,7 @@ dependencies {
 	
 	implementation 'org.json:json:20231013'
 	
+<<<<<<< HEAD
 	implementation 'org.apache.httpcomponents.client5:httpclient5:5.3.1'
 	
 	implementation 'com.google.firebase:firebase-admin:9.7.0'
@@ -79,6 +83,8 @@ dependencies {
 
     // Apache HttpCore HTTP/2
     implementation 'org.apache.httpcomponents.core5:httpcore5-h2:5.2.4'
+=======
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 
     // Exclude commons-logging (avoid conflicts with Spring Boot logging system)
     configurations.all {

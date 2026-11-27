@@ -4,7 +4,10 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+<<<<<<< HEAD
 import org.springframework.http.HttpStatus;
+=======
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,7 +31,10 @@ public class GlobalExceptionHandler {
                 .message("Validation failed")
                 .errors(errors)
                 .timestamp(LocalDateTime.now())
+<<<<<<< HEAD
                 .httpStatus(HttpStatus.BAD_REQUEST)
+=======
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
                 .build();
 
         return ResponseEntity.badRequest().body(response);
@@ -42,11 +48,15 @@ public class GlobalExceptionHandler {
                 .message(ex.getMessage())
                 .errors(null)
                 .timestamp(LocalDateTime.now())
+<<<<<<< HEAD
                 .httpStatus(HttpStatus.BAD_REQUEST)
+=======
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
                 .build();
 
         return ResponseEntity.badRequest().body(response);
     }
+<<<<<<< HEAD
     
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<?>> handleGenericException(Exception ex){
@@ -60,5 +70,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.internalServerError().body(response);
     }
+=======
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 }
 

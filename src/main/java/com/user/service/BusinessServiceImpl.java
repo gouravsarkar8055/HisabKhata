@@ -6,9 +6,13 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+<<<<<<< HEAD
 import com.user.api_response.ApiResponse;
 import com.user.entity.BusinessEntity;
 import com.user.entity.Transaction;
+=======
+import com.user.entity.BusinessEntity;
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 import com.user.repository.BusinessRepository;
 import com.user.repository.UserEntityRepo;
 @Service
@@ -23,13 +27,18 @@ public class BusinessServiceImpl {
     @Autowired
     private UserEntityRepo userEntityRepo;
 
+<<<<<<< HEAD
     public ApiResponse<BusinessEntity> addBusiness(BusinessEntity business) {
+=======
+    public BusinessEntity addBusiness(BusinessEntity business) {
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
     	Long userId = transactionServiceImpl.getLoggedInUserId();
     	business.setUserId(userId);
         business.setCreatedDate(LocalDateTime.now());
         business.setUpdatedDate(LocalDateTime.now());
         
         userEntityRepo.updateShopName(userId, business.getBusinessName());
+<<<<<<< HEAD
         BusinessEntity save = businessRepository.save(business);
         
         return ApiResponse.<BusinessEntity>builder()
@@ -41,6 +50,12 @@ public class BusinessServiceImpl {
     }
 
     public ApiResponse<BusinessEntity> updateBusiness(Long id, BusinessEntity business) {
+=======
+        return businessRepository.save(business);
+    }
+
+    public BusinessEntity updateBusiness(Long id, BusinessEntity business) {
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
         BusinessEntity existing = businessRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Business not found with id: " + id));
         Long userId = transactionServiceImpl.getLoggedInUserId();
@@ -54,6 +69,7 @@ public class BusinessServiceImpl {
         existing.setUpdatedDate(LocalDateTime.now());
 
         userEntityRepo.updateShopName(userId, business.getBusinessName());
+<<<<<<< HEAD
         
         return ApiResponse.<BusinessEntity>builder()
                 .success(true)
@@ -61,6 +77,9 @@ public class BusinessServiceImpl {
                 .data(businessRepository.save(existing))
                 .timestamp(LocalDateTime.now())
                 .build();
+=======
+        return businessRepository.save(existing);
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
     }
 
     public void deleteBusiness(Long id) {
@@ -79,6 +98,7 @@ public class BusinessServiceImpl {
         return businessRepository.findAll();
     }
 
+<<<<<<< HEAD
     public ApiResponse<BusinessEntity> getBusinessesByUserId() {
 
         Long userId = transactionServiceImpl.getLoggedInUserId();
@@ -91,5 +111,9 @@ public class BusinessServiceImpl {
                 .data(findByUserId)
                 .timestamp(LocalDateTime.now())
                 .build();
+=======
+    public List<BusinessEntity> getBusinessesByUserId(Long userId) {
+        return businessRepository.findByUserId(userId);
+>>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
     }
 }
