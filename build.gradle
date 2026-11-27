@@ -1,0 +1,91 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.2'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.user'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17) // Ensure compatibility with Spring Boot 3.x
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+dependencies {
+    // Lombok for compile-time code generation
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+   // implementation 'org.projectlombok:lombok:1.18.28'
+   // annotationProcessor 'org.projectlombok:lombok:1.18.28'
+
+    // Spring Boot Web, Security, and JPA
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'  // Mail functionality if needed
+    implementation 'org.springframework.boot:spring-boot-starter-logging'  // Default logging
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    // JWT dependencies
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    // MySQL JDBC Driver
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // Optional Spring Security Crypto (if needed for password encoding)
+    implementation 'org.springframework.security:spring-security-crypto'
+
+    // Twilio SDK (for SMS, etc.)
+    implementation 'com.twilio.sdk:twilio:8.30.0'
+
+    // Development tools (DevTools)
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+	implementation 'org.apache.commons:commons-pool2'
+	
+	implementation 'com.github.ben-manes.caffeine:caffeine'
+	
+	implementation 'org.json:json:20231013'
+	
+	implementation 'org.apache.httpcomponents.client5:httpclient5:5.3.1'
+	
+	implementation 'com.google.firebase:firebase-admin:9.7.0'
+
+    // Apache HttpCore 5
+    implementation 'org.apache.httpcomponents.core5:httpcore5:5.2.4'
+
+    // Apache HttpCore HTTP/2
+    implementation 'org.apache.httpcomponents.core5:httpcore5-h2:5.2.4'
+
+    // Exclude commons-logging (avoid conflicts with Spring Boot logging system)
+    configurations.all {
+        exclude group: 'commons-logging', module: 'commons-logging'
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
