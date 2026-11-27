@@ -24,24 +24,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 import com.user.api_response.ApiResponse;
 import com.user.dto.DashboardSummaryDTO;
-<<<<<<< HEAD
 import com.user.entity.BusinessEntity;
 import com.user.entity.Employee;
 import com.user.entity.IdempotencyEntity;
-=======
 import com.user.entity.Employee;
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 import com.user.entity.PartyDetails;
 import com.user.entity.Transaction;
 import com.user.entity.TransactionPayment;
 import com.user.jwtauthentication.JwtAuthenticationFilter;
-<<<<<<< HEAD
 import com.user.repository.BusinessRepository;
 import com.user.repository.EmployeeRepo;
 import com.user.repository.IdempotencyRepository;
-=======
 import com.user.repository.EmployeeRepo;
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 import com.user.repository.PartyDetailsRepo;
 import com.user.repository.TransactionRepo;
 
@@ -61,13 +55,10 @@ public class TransactionServiceImpl {
 	private EmployeeRepo employeeRepo;
 	@Autowired
 	private TransactionRepo transactionRepo;
-<<<<<<< HEAD
 	@Autowired
 	private IdempotencyRepository idempotencyRepository;
 	@Autowired
     private BusinessRepository businessRepository;
-=======
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 	
 	private static final Logger logger = LoggerFactory.getLogger(TransactionServiceImpl.class);
 	
@@ -76,16 +67,11 @@ public class TransactionServiceImpl {
 	}
 	
 	@Transactional
-<<<<<<< HEAD
 	public ApiResponse<Transaction> addTransaction(String idempotencyKey, Transaction transaction) {
-=======
-	public ApiResponse<Transaction> addTransaction(@RequestBody Transaction transaction) {
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 
 	    logger.info("Inside addTransaction method");
 
 	    Long userId = transaction.getCreatedBy();
-<<<<<<< HEAD
 	    BusinessEntity findByUserId = businessRepository.findByUserId(userId);
 	    
 	    if(findByUserId == null) {
@@ -118,9 +104,7 @@ public class TransactionServiceImpl {
 	                .httpStatus(HttpStatus.OK)
 	                .build();
 	    }
-	    
-=======
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
+
 	    if (userId == null) {
 	        userId = jwtAuthenticationFilter.getLoggedInUserId();
 	        transaction.setCreatedBy(userId);
@@ -197,7 +181,6 @@ public class TransactionServiceImpl {
 	    }
 
 	    Transaction savedTransaction = transactionRepo.save(transaction);
-<<<<<<< HEAD
 	    
 	    IdempotencyEntity idempotency = new IdempotencyEntity();
 
@@ -207,8 +190,6 @@ public class TransactionServiceImpl {
 	    idempotency.setCreatedAt(LocalDateTime.now());
 
 	    idempotencyRepository.save(idempotency);
-=======
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 
 	    logger.info("Saved new transaction ID: {}, Balance: {}",
 	            savedTransaction.getId(), savedTransaction.getBalance());
@@ -217,10 +198,7 @@ public class TransactionServiceImpl {
 	            .success(true)
 	            .message("Transaction Successful")
 	            .timestamp(LocalDateTime.now())
-<<<<<<< HEAD
 	            .httpStatus(HttpStatus.OK)
-=======
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 	            .build();
 	}		
 	

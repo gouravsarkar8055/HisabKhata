@@ -7,10 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-<<<<<<< HEAD
 import java.util.UUID;
-=======
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -51,13 +48,10 @@ public class PartyServiceImpl {
 	
 	@Autowired
 	private TransactionServiceImpl transactionServiceImpl;
-	
-<<<<<<< HEAD
+
 	@Autowired
 	private NotificationPushService notificationPushService;
-	
-=======
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
+
 	public ApiResponse<PartyDetails> addParty(PartyDetails prt) {
 
 	    Long userId = jwtAuthenticationFilter.getLoggedInUserId();
@@ -103,23 +97,19 @@ public class PartyServiceImpl {
 	    	t.setTransaction("opening-balance");
 	    	t.setEntityKey(prt.getPartyKey());
 	    	t.setEntityId(saved.getId());
-<<<<<<< HEAD
+
 	    	String idempotencyKey = UUID.randomUUID().toString();
 	    	transactionServiceImpl.addTransaction(idempotencyKey, t);
 	    }
 	    notificationPushService.sendToUser(
         		transactionServiceImpl.getLoggedInUserId(),
-                1l,
+                3l,
                 "HisabKhata",
                 "New Party added successfully",
                 "USER",
                 null
             );
-=======
-	    	
-	    	transactionServiceImpl.addTransaction(t);
-	    }
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
+	    
 	    return ApiResponse.<PartyDetails>builder()
 	            .success(true)
 	            .message("Party added successfully")
@@ -196,13 +186,8 @@ public class PartyServiceImpl {
 			    	t.setTransaction("opening-balance");
 			    	t.setEntityKey(prt.getPartyKey());
 			    	t.setEntityId(prt.getId());
-<<<<<<< HEAD
 			    	String idempotencyKey = UUID.randomUUID().toString();
 			    	transactionServiceImpl.addTransaction(idempotencyKey, t);
-=======
-			    	
-			    	transactionServiceImpl.addTransaction(t);
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 	    		}
 		    }
 	    }

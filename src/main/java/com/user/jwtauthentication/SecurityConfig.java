@@ -19,7 +19,6 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserServiceImpl userServiceImpl;
-<<<<<<< HEAD
     private final GoogleAuthenticationSuccessHandler googleAuthenticationSuccessHandler;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, UserServiceImpl userServiceImpl, 
@@ -27,12 +26,6 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userServiceImpl = userServiceImpl;
         this.googleAuthenticationSuccessHandler = googleAuthenticationSuccessHandler;
-=======
-
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, UserServiceImpl userServiceImpl) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.userServiceImpl = userServiceImpl;
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
     }
 
     @Bean
@@ -58,21 +51,14 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable()) // Updated syntax
             .authorizeHttpRequests(auth -> auth
-<<<<<<< HEAD
                 .requestMatchers("/user/login", "/user/test-mail", "/user/addTempUser", "/user/verify-otp", "/user/resendOtp", "/api/auth/google").permitAll()
-=======
                 .requestMatchers("/user/login", "/user/test-mail", "/user/addTempUser", "/user/verify-otp", "/user/resendOtp").permitAll()
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authenticationProvider(authenticationProvider()) // Ensure the authentication provider is set
-<<<<<<< HEAD
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .oauth2Login(oauth2 -> oauth2.successHandler(googleAuthenticationSuccessHandler));
-=======
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 
         return http.build();
     }

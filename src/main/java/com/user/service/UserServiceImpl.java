@@ -54,12 +54,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Value;
-<<<<<<< HEAD
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
-=======
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
 import org.springframework.http.RequestEntity;
 
 import com.twilio.Twilio;
@@ -480,14 +477,9 @@ public class UserServiceImpl implements UserDetailsService{
             e.printStackTrace(); 
         }
     }
-    
-<<<<<<< HEAD
+
     @Cacheable(value = "userData")
     public ApiResponse<UserEntity> getUserData(String email) throws UsernameNotFoundException{
-=======
-    public ApiResponse<UserEntity> getUserData() throws UsernameNotFoundException{
-    	String email = getCurrentUserDetails().getUsername();
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
     	UserEntity user = userEntityRepo.findByEmail(email);
         if (user == null) {
             throw new UsernameNotFoundException("User not found with email: " + email);
@@ -499,11 +491,8 @@ public class UserServiceImpl implements UserDetailsService{
 	            .timestamp(LocalDateTime.now())
 	            .build();
     }
-    
-<<<<<<< HEAD
+
     @CacheEvict(value = "userData")
-=======
->>>>>>> 45fd25982da46d435d6a1f4c455026ae04e43c17
     public ApiResponse<UserEntity> updateUserData(Long userId, UserEntity updatedUser) {
 
         Optional<UserEntity> optionalUser = userEntityRepo.findById(userId);
